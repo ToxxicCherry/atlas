@@ -1,11 +1,3 @@
-import json
-
-# COOKIES = {
-#     'x_wbaas_token': '1.1000.4e46b92cb7994514a58f1bfbe562d83d.MHwxODguMTIxLjE2LjR8TW96aWxsYS81LjAgKFdpbmRvd3MgTlQgMTAuMDsgV2luNjQ7IHg2NCkgQXBwbGVXZWJLaXQvNTM3LjM2IChLSFRNTCwgbGlrZSBHZWNrbykgQ2hyb21lLzE0Ni4wLjAuMCBTYWZhcmkvNTM3LjM2fDE3NzUzMDQzNzZ8cmV1c2FibGV8MnxleUpvWVhOb0lqb2lJbjA9fDB8M3wxNzc0Njk5NTc2fDE=.MEQCIE/G8GrN16QvhRtPkcSRWq1l74cu9hXRfb+3R/fw9H+UAiAhtEA8yJzts3Jywm2z7h5Yl8spqGP18SgkxhACuRpJZA==',
-#     #'_wbauid': '7871324931774094780',
-#     #'_cp': '1',
-# }
-
 HEADERS = {
     'accept': '*/*',
     'accept-language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7,pl;q=0.6',
