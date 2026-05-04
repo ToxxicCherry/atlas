@@ -122,12 +122,16 @@ class Item(BaseModel):
     wh: int = Field(description='ID склада', serialization_alias='ID скалада')
 
 class FetchCardsResult(BaseModel):
-    type: Literal['fetch_cards'] = TaskType.fetch_cards.value
+    type: Literal[TaskType.fetch_cards] = TaskType.fetch_cards
     items: List[Item] = Field(default_factory=list)
 
 
+Payload = Union[
+    FetchCardsResult,
+
+]
 class ParseResult(BaseModel):
     task_id: UUID = Field()
     status: TaskStatus = Field(default=TaskStatus.completed)
     error_message: Optional[str] = None
-    payload: Union[FetchCardsResult] = Field(discriminator='type')
+    payload: Optional[Payload] = Field(default=None, discriminator='type')

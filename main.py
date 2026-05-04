@@ -12,7 +12,7 @@ if sys.platform == "win32":
 async def main():
     # async with database.engine.begin() as conn:
     #     await conn.run_sync(models.Base.metadata.create_all)
-    #await db_actions.create_task(task_1)
+    # await db_actions.create_task(task_1)
     # await db_actions.create_task(task_2)
 
 

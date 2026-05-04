@@ -16,11 +16,15 @@ class TaskType(enum.Enum):
 
 
 class FetchCardsPayload(BaseModel):
-    type: Literal['fetch_cards'] = TaskType.fetch_cards.value
+    model_config = ConfigDict(use_enum_values=True)
+
+    type: Literal[TaskType.fetch_cards] = TaskType.fetch_cards
     query: str
 
 class TrackPositionPayload(BaseModel):
-    type: Literal['track_positions'] = TaskType.track_positions.value
+    model_config = ConfigDict(use_enum_values=True)
+
+    type: Literal[TaskType.track_positions] = TaskType.track_positions
     query: str
     articles: List[int]
 

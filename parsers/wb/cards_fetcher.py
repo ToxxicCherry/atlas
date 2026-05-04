@@ -5,7 +5,8 @@ from loguru import logger
 from clients.wb_client import WBClient
 from typing import Callable
 from schemas.parsers_schemas import FilterData, Filter, TaskForWorker, Item
-from schemas import db_schemas
+from schemas.db_schemas import TaskType, TaskStatus
+from schemas.parsers_schemas import FetchCardsResult, ParseResult
 from parsers.base import BaseParser
 from pydantic import TypeAdapter
 from typing import List
@@ -17,9 +18,9 @@ from db import models
 
 class WBCardsFetcher(BaseParser):
     def __init__(self, task: models.Task):
-        if task.type != db_schemas.TaskType.fetch_cards:
-            raise ValueError(f'{self.__class__.__name__} ожидает {db_schemas.TaskType.fetch_cards}. Получил {task.type}' )
-
+        if task.type != TaskType.fetch_cards:
+            raise ValueError(f'{self.__class__.__name__} ожидает {TaskType.fetch_cards}. Получил {task.type}' )
+        self.db_task = task
         self.limit = 5000
         self.max_pages = 50
         self.max_cards_on_page = 100
@@ -291,13 +292,31 @@ class WBCardsFetcher(BaseParser):
         result = list(unique_everseen(items, key=lambda item: item.id))
         return result
 
-    async def parse(self) -> list[Item]:
-        await self.api.change_cookie()
-        best_filter = await self.create_best_filter()
-        await self.prepare_queue_for_catalog(best_filter)
-        await self.run_workers(self.catalog_articles_worker)
+    async def parse(self) -> ParseResult:
+        try:
+            await self.api.change_cookie()
+            best_filter = await self.create_best_filter()
+            await self.prepare_queue_for_catalog(best_filter)
+            await self.run_workers(self.catalog_articles_worker)
 
-        logger.debug(self.black_list_total)
+            logger.debug(self.black_list_total)
 
-        return self.delete_duplicates(self.workers_result)
+            result = self.delete_duplicates(self.workers_result)
+
+            return ParseResult(
+                task_id=self.db_task.id,
+                status=TaskStatus.completed,
+                payload=FetchCardsResult(
+                    type=TaskType.fetch_cards,
+                    items=result,
+                )
+            )
+        except Exception as e:
+            logger.exception(e)
+
+            return ParseResult(
+                task_id=self.db_task.id,
+                status=TaskStatus.failed,
+                error_message=str(e)
+            )
 
