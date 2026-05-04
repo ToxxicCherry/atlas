@@ -6,8 +6,10 @@ from pydantic import (
                     computed_field
                     )
 from pydantic.alias_generators import to_camel
-from typing import List, Dict, Any, Union, Literal
+from typing import List, Dict, Any, Union, Literal, Optional
+from schemas.db_schemas import TaskType, TaskStatus
 from copy import copy
+from uuid import UUID
 
 
 class Filter(BaseModel):
@@ -119,8 +121,13 @@ class Item(BaseModel):
     weight: float = Field(serialization_alias='Вес')
     wh: int = Field(description='ID склада', serialization_alias='ID скалада')
 
-
+class FetchCardsResult(BaseModel):
+    type: Literal['fetch_cards'] = TaskType.fetch_cards.value
+    items: List[Item] = Field(default_factory=list)
 
 
 class ParseResult(BaseModel):
-    result: Union[list[Item]] = Field()
+    task_id: UUID = Field()
+    status: TaskStatus = Field(default=TaskStatus.completed)
+    error_message: Optional[str] = None
+    payload: Union[FetchCardsResult] = Field(discriminator='type')
