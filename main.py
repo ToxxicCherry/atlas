@@ -13,12 +13,12 @@ async def main():
     # async with database.engine.begin() as conn:
     #     await conn.run_sync(models.Base.metadata.create_all)
     # await db_actions.create_user(pydantic_user)
-    await db_actions.create_task(task_1)
-    await db_actions.create_task(task_2)
+    # await db_actions.create_task(task_1)
+    # await db_actions.create_task(task_2)
 
 
-    # atlas = Atlas()
-    # await atlas.run_workers()
+    atlas = Atlas()
+    await atlas.run_workers()
 
 
 if __name__ == '__main__':

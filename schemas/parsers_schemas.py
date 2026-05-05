@@ -119,7 +119,7 @@ class Item(BaseModel):
     supplier_id: int = Field(serialization_alias='ID продавца')
     supplier_rating: float = Field(serialization_alias='Рейтинг продавца')
     weight: float = Field(serialization_alias='Вес')
-    wh: int = Field(description='ID склада', serialization_alias='ID скалада')
+    wh: int = Field(description='ID склада', serialization_alias='ID склада')
 
 class FetchCardsResult(BaseModel):
     type: Literal[TaskType.fetch_cards] = TaskType.fetch_cards

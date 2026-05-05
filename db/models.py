@@ -1,5 +1,5 @@
-from sqlalchemy.orm import declarative_base
-from sqlalchemy import Column, BigInteger, Integer, String, DateTime, func, text, Text, Enum as SQLEnum, ForeignKey, Boolean
+from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy import Column, BigInteger, Integer, String, DateTime, func, text, Text, Enum as SQLEnum, ForeignKey, Boolean, Float
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from schemas import db_schemas
 import uuid
@@ -14,6 +14,8 @@ class User(Base):
     email = Column(String, nullable=False, unique=True, index=True)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    tasks = relationship("Task", backref="user", cascade="all, delete-orphan")
 
 
 class Task(Base):
@@ -31,6 +33,39 @@ class Task(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     started_at = Column(DateTime(timezone=True))
     finished_at = Column(DateTime(timezone=True))
+
+
+class ProductSize(Base):
+    __tablename__ = 'product_sizes'
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, server_default=text("gen_random_uuid()"))
+    product_id = Column(BigInteger, ForeignKey("products.id"), nullable=False)
+    name = Column(String, nullable=False)
+    price_basic = Column(Integer, nullable=False)
+    price_product = Column(Integer, nullable=False)
+
+class Product(Base):
+    __tablename__ = 'products'
+
+    id = Column(BigInteger, primary_key=True)
+    name = Column(String, nullable=False)
+    brand = Column(String, nullable=False)
+    brand_id = Column(BigInteger, nullable=False)
+    subject_id = Column(BigInteger, nullable=False)
+    total_quantity = Column(Integer, nullable=False)
+    rating = Column(Float, nullable=False)
+    feedbacks = Column(Integer, nullable=False)
+    supplier = Column(String, nullable=False)
+    supplier_id = Column(BigInteger, nullable=False)
+    supplier_rating = Column(Float, nullable=False)
+    weight = Column(Float, nullable=False)
+    wh = Column(BigInteger, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    sizes = relationship('ProductSize', backref='product', cascade='all, delete-orphan')
+
+
 
 class Cookie(Base):
     __tablename__ = "cookies"
