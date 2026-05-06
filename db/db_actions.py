@@ -96,56 +96,55 @@ async def create_user(user_schema: db_schemas.UserSchema):
         return created_user
 
 
-async def save_batch(session: AsyncSession, batch: list[Item], task_id: UUID):
-    product_mappings = [
-        item.model_dump(exclude={'sizes'}, by_alias=False)
-        for item in batch
-    ]
+async def save_batch(batch: list[Item], task_id: UUID):
+    async with database.get_db() as session:
+        product_mappings = [
+            item.model_dump(exclude={'sizes'}, by_alias=False)
+            for item in batch
+        ]
 
-    product_ids = [p['id'] for p in product_mappings]
+        product_ids = [p['id'] for p in product_mappings]
 
-    insert_query = insert(models.Product).values(product_mappings)
+        insert_query = insert(models.Product).values(product_mappings)
 
-    update_dict = {
-        col.name: insert_query.excluded[col.name]
-        for col in models.Product.__table__.columns
-        if col.name not in ['id', 'created_at']
-    }
+        update_dict = {
+            col.name: insert_query.excluded[col.name]
+            for col in models.Product.__table__.columns
+            if col.name not in ['id', 'created_at']
+        }
 
-    update_dict['updated_at'] = func.now()
+        update_dict['updated_at'] = func.now()
 
-    upsert_query = insert_query.on_conflict_do_update(
-        index_elements=['id'],
-        set_=update_dict
-    )
-    await session.execute(upsert_query)
-
-    task_product_mappings = [
-        {'task_id': task_id, 'product_id': item.id} for item in batch
-    ]
-
-    tp_insert = insert(models.TaskProduct).values(task_product_mappings).on_conflict_do_nothing()
-    await session.execute(tp_insert)
-
-    delete_sizes_query = (
-        delete(models.ProductSize).where(models.ProductSize.product_id.in_(product_ids))
-    )
-    await session.execute(delete_sizes_query)
-
-    all_sizes_mapping = []
-    for item in batch:
-        if item.sizes:
-            for size in item.sizes:
-                size_dict = size.model_dump(by_alias=False, exclude={'discount_amount', 'discount_percent'})
-                size_dict['product_id'] = item.id
-                all_sizes_mapping.append(size_dict)
-
-    if all_sizes_mapping:
-        await session.execute(
-            insert(models.ProductSize).values(all_sizes_mapping)
+        upsert_query = insert_query.on_conflict_do_update(
+            index_elements=['id'],
+            set_=update_dict
         )
+        await session.execute(upsert_query)
 
-    await session.flush()
+        task_product_mappings = [
+            {'task_id': task_id, 'product_id': item.id} for item in batch
+        ]
+
+        tp_insert = insert(models.TaskProduct).values(task_product_mappings).on_conflict_do_nothing()
+        await session.execute(tp_insert)
+
+        delete_sizes_query = (
+            delete(models.ProductSize).where(models.ProductSize.product_id.in_(product_ids))
+        )
+        await session.execute(delete_sizes_query)
+
+        all_sizes_mapping = []
+        for item in batch:
+            if item.sizes:
+                for size in item.sizes:
+                    size_dict = size.model_dump(by_alias=False, exclude={'discount_amount', 'discount_percent'})
+                    size_dict['product_id'] = item.id
+                    all_sizes_mapping.append(size_dict)
+
+        if all_sizes_mapping:
+            await session.execute(
+                insert(models.ProductSize).values(all_sizes_mapping)
+            )
 
 
 

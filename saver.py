@@ -21,7 +21,7 @@ class Saver:
                 break
             yield chunk
 
-    async def fetch_cards_save(self, session: AsyncSession, parse_result: ParseResult):
+    async def fetch_cards_save(self, parse_result: ParseResult):
         batch_size = 1000
         processed_count = 0
         payload = parse_result.payload
@@ -41,14 +41,12 @@ class Saver:
     async def save(self, parse_result: ParseResult):
         total_found = 0
 
+        payload = parse_result.payload
+        if isinstance(payload, FetchCardsResult):
+            total_found = len(payload.items)
+            await self.fetch_cards_save(parse_result)
+
         async with self.session_maker() as session:
-
-            payload = parse_result.payload
-            if isinstance(payload, FetchCardsResult):
-                total_found = len(payload.items)
-                await self.fetch_cards_save(session, parse_result)
-
-
 
             await set_task_status(session, parse_result.task_id, parse_result.status, total_found)
 
