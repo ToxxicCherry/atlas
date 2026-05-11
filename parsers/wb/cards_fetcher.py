@@ -311,6 +311,17 @@ class WBCardsFetcher(BaseParser):
                     items=result,
                 )
             )
+
+        except IndexError as e:
+            if str(e) == 'pop from empty list':
+                logger.error(f'Словил "pop from empty list". Повторяю попытку')
+                return await self.parse()
+
+            return ParseResult(
+                task_id=self.db_task.id,
+                status=TaskStatus.failed,
+                error_message=str(e)
+            )
         except Exception as e:
             logger.exception(e)
 
