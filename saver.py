@@ -47,6 +47,7 @@ class Saver:
 
         async with self.session_maker() as session:
             payload = parse_result.payload
+
             if isinstance(payload, FetchCardsResult):
                 total_found = len(payload.items)
                 await self.fetch_cards_save(session, parse_result)

@@ -322,7 +322,7 @@ class WBCardsFetcher(BaseParser):
                 status=TaskStatus.failed,
                 error_message=str(e)
             )
-        except Exception as e:
+        except (Exception, BaseException) as e:
             logger.exception(e)
 
             return ParseResult(

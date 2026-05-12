@@ -1,5 +1,6 @@
 from parsers import ParserMaker
 from db import db_actions
+from schemas.db_schemas import TaskStatus
 from schemas.parsers_schemas import ParseResult
 from loguru import logger
 from saver import Saver
@@ -22,16 +23,24 @@ class Atlas:
                 await asyncio.sleep(5)
                 continue
 
+            result = ParseResult(
+                task_id=task.id,
+                error_message='Ошибка воркера в try except. ParseResult не был получен',
+                status=TaskStatus.failed
+            )
             try:
                 parser = self.manager.choose(task)
                 result: ParseResult = await parser.parse()
 
-            except Exception as e:
+            except (Exception, BaseException) as e:
                 logger.error(e)
+                result = ParseResult(
+                    task_id=task.id,
+                    error_message=str(e),
+                    status=TaskStatus.failed
+                )
 
-            except BaseException as e:
-                logger.error(e)
-            else:
+            finally:
                 await self.saver.save(result)
 
 
