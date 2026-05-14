@@ -16,7 +16,11 @@ class PositionsFetcher(BaseParser):
         if task.type != TaskType.track_positions:
             raise ValueError(f'{self.__class__.__name__} ожидает {TaskType.track_positions}. Получил {task.type}' )
 
-        self.payload = TrackPositionPayload.model_validate(task.payload)
+        payload_data = task.payload
+        if isinstance(payload_data.get('type'), str):
+            payload_data['type'] = TaskType(payload_data['type'])
+
+        self.payload = TrackPositionPayload.model_validate(payload_data)
         self.items = []
         self.positions = []
 
@@ -26,7 +30,7 @@ class PositionsFetcher(BaseParser):
     async def fetch_total_by_query(self) -> int:
         add_params = {'resultset': 'filters'}
 
-        response_data = self.api.fetch(add_params=add_params)
+        response_data = await self.api.fetch(add_params=add_params)
         total = response_data.get('data', {}).get('total', 0)
         return total
 
@@ -57,7 +61,7 @@ class PositionsFetcher(BaseParser):
                 if overlap_set:
                     for article in overlap_set:
                         art_index = response_articles.index(article)
-                        article_position = art_index + (add_params['page'] - 1) * self.max_cards_on_page
+                        article_position = art_index + (add_params['page'] - 1) * self.max_cards_on_page + 1
                         self.positions.append(
                             Position(
                                 product_id=article,
@@ -75,6 +79,7 @@ class PositionsFetcher(BaseParser):
 
     async def parse(self) -> ParseResult:
         try:
+            await self.api.change_cookie()
             total = await self.fetch_total_by_query()
             await self.prepare_queue_for_catalog(total)
             self.positions = []

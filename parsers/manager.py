@@ -19,6 +19,7 @@ class ParserMaker:
     def choose(self, task: TaskModel):
         parser = self.parsers.get(task.source, {}).get(task.type)
 
+
         if not parser:
             raise ValueError(f"Нет реализации парсера для {task.source}, {task.type}")
         return parser(task)

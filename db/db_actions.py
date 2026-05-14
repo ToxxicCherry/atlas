@@ -124,7 +124,17 @@ async def save_fetch_cards_batch(session: AsyncSession, batch: list[Item], task_
 
 
 async def save_track_positions_batch(session: AsyncSession, batch: list[tp.Position], task_id: UUID):
-    pass
+    positions_mappings = [
+        position.model_dump()
+        for position in batch
+    ]
+
+    for position in positions_mappings:
+        position['task_id'] = task_id
+
+    insert_query = insert(models.PositionModel).values(positions_mappings).on_conflict_do_nothing()
+    await session.execute(insert_query)
+    await session.flush()
 
 
 

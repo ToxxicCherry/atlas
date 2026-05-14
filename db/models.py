@@ -97,8 +97,8 @@ class PositionModel(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4, server_default=text("gen_random_uuid()"))
     task_id: Mapped[UUID] = mapped_column(ForeignKey("tasks.id", ondelete='CASCADE'), nullable=False)
     product_id: Mapped[int] = mapped_column(BigInteger, ForeignKey('products.id', ondelete='CASCADE'), nullable=False)
-    positon: Mapped[int] = mapped_column(nullable=False)
-    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    position: Mapped[int] = mapped_column(nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     task: Mapped['TaskModel'] = relationship('TaskModel', back_populates='positions')
     product: Mapped['ProductModel'] = relationship('ProductModel', back_populates='positions')

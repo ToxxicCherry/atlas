@@ -1,7 +1,7 @@
 from loguru import logger
 from schemas.parsers_schemas import ParseResult, FetchCardsResult, TrackPositionsResult
 from db.database import get_db
-from db.db_actions import set_task_status, save_fetch_cards_batch
+from db.db_actions import set_task_status, save_fetch_cards_batch, save_track_positions_batch
 from schemas.db_schemas import TaskStatus
 from sqlalchemy.ext.asyncio import AsyncSession
 from itertools import islice
@@ -46,8 +46,7 @@ class Saver:
 
         try:
             for batch in self.chunked_iterable(payload.positions, batch_size):
-                #
-                #
+                await save_track_positions_batch(session, batch, parse_result.task_id)
                 processed_count += len(batch)
                 logger.success(f"Сохранено {processed_count} из {len(payload.positions)}")
 
