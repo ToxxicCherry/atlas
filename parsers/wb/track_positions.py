@@ -1,9 +1,6 @@
-from schemas.parsers_schemas import ParseResult, TrackPositionsResult, ProductSchema, SizeSchema
-from schemas.db_schemas import TaskType, TrackPositionPayload, TaskStatus
-from schemas.track_positions import Position
+from schemas import ParseResultSchema, TrackPositionsResultSchema, ProductSchema, SizeSchema, TaskType, TrackPositionPayloadSchema, TaskStatus, PositionSchema
 from ..base import BaseParser
-from db import models
-from db.db_actions import pre_save_products
+from db import TaskModel
 from pydantic import TypeAdapter
 from loguru import logger
 from typing import List
@@ -13,7 +10,7 @@ import random
 
 
 class PositionsFetcher(BaseParser):
-    def __init__(self, task: models.TaskModel):
+    def __init__(self, task: TaskModel):
         if task.type != TaskType.track_positions:
             raise ValueError(f'{self.__class__.__name__} ожидает {TaskType.track_positions}. Получил {task.type}' )
 
@@ -21,7 +18,7 @@ class PositionsFetcher(BaseParser):
         if isinstance(payload_data.get('type'), str):
             payload_data['type'] = TaskType(payload_data['type'])
 
-        self.payload = TrackPositionPayload.model_validate(payload_data)
+        self.payload = TrackPositionPayloadSchema.model_validate(payload_data)
         self.items = []
         self.positions = []
 
@@ -57,7 +54,7 @@ class PositionsFetcher(BaseParser):
                         art_index = response_articles.index(article)
                         article_position = art_index + (add_params['page'] - 1) * self.max_cards_on_page + 1
                         self.positions.append(
-                            Position(
+                            PositionSchema(
                                 product_id=article,
                                 position=article_position,
                             )
@@ -72,7 +69,7 @@ class PositionsFetcher(BaseParser):
                 await asyncio.sleep(random.uniform(0.2, 0.7))
 
 
-    async def parse(self) -> ParseResult:
+    async def parse(self) -> ParseResultSchema:
         try:
             await self.api.change_cookie()
             await self.get_blacklist_total()
@@ -93,17 +90,17 @@ class PositionsFetcher(BaseParser):
                 )
 
                 self.positions.append(
-                    Position(
+                    PositionSchema(
                         product_id=article,
                         position=self.limit,
                     )
                 )
 
 
-            return ParseResult(
+            return ParseResultSchema(
                 task_id=self.db_task.id,
                 status=TaskStatus.completed,
-                payload=TrackPositionsResult(
+                payload=TrackPositionsResultSchema(
                     type=TaskType.track_positions,
                     positions=self.positions,
                     items=self.items,
@@ -112,7 +109,7 @@ class PositionsFetcher(BaseParser):
         except (Exception, BaseException) as e:
             logger.exception(e)
 
-            return ParseResult(
+            return ParseResultSchema(
                 task_id=self.db_task.id,
                 status=TaskStatus.failed,
                 error_message=str(e)

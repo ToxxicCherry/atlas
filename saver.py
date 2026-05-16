@@ -1,8 +1,6 @@
 from loguru import logger
-from schemas.parsers_schemas import ParseResult, FetchCardsResult, TrackPositionsResult
-from db.database import get_db
-from db.db_actions import set_task_status, save_fetch_cards_batch, save_track_positions_batch
-from schemas.db_schemas import TaskStatus
+from schemas import ParseResultSchema, FetchCardsResultSchema, TrackPositionsResultSchema, TaskStatus
+from db import set_task_status, save_fetch_cards_batch, save_track_positions_batch, get_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from itertools import islice
 from typing import Iterable
@@ -22,10 +20,10 @@ class Saver:
                 break
             yield chunk
 
-    async def fetch_cards_save(self,session: AsyncSession, parse_result: ParseResult):
+    async def fetch_cards_save(self, session: AsyncSession, parse_result: ParseResultSchema):
         batch_size = 500
         processed_count = 0
-        payload: FetchCardsResult | TrackPositionsResult = parse_result.payload
+        payload: FetchCardsResultSchema | TrackPositionsResultSchema = parse_result.payload
 
         try:
             for batch in self.chunked_iterable(payload.items, batch_size):
@@ -39,10 +37,10 @@ class Saver:
             parse_result.error_message = str(e)
 
 
-    async def track_positions_save(self,session: AsyncSession, parse_result: ParseResult):
+    async def track_positions_save(self, session: AsyncSession, parse_result: ParseResultSchema):
         batch_size = 500
         processed_count = 0
-        payload: TrackPositionsResult = parse_result.payload
+        payload: TrackPositionsResultSchema = parse_result.payload
 
         try:
             for batch in self.chunked_iterable(payload.positions, batch_size):
@@ -58,17 +56,17 @@ class Saver:
 
 
 
-    async def save(self, parse_result: ParseResult):
+    async def save(self, parse_result: ParseResultSchema):
         total_found = 0
 
         async with self.session_maker() as session:
             payload = parse_result.payload
 
-            if isinstance(payload, FetchCardsResult):
+            if isinstance(payload, FetchCardsResultSchema):
                 total_found = len(payload.items)
                 await self.fetch_cards_save(session, parse_result)
 
-            if isinstance(payload, TrackPositionsResult):
+            if isinstance(payload, TrackPositionsResultSchema):
                 total_found = len(payload.items)
                 await self.fetch_cards_save(session, parse_result)
                 await self.track_positions_save(session, parse_result)

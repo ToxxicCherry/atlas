@@ -1,5 +1,5 @@
 from sqlalchemy.orm import declarative_base, relationship, Mapped, mapped_column
-from sqlalchemy import Column, BigInteger, Integer, String, DateTime, func, text, Text, Enum as SQLEnum, ForeignKey, Boolean, Float
+from sqlalchemy import Column, BigInteger, String, DateTime, func, text, Text, Enum as SQLEnum, ForeignKey, Boolean
 from sqlalchemy.dialects.postgresql import UUID as SQLUUID, JSONB
 from schemas import db_schemas
 from uuid import UUID, uuid4
@@ -91,7 +91,7 @@ class Cookie(Base):
     user_agent = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-class BlackListTotal(Base):
+class BlackListTotalModel(Base):
     __tablename__ = 'blacklist_totals'
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     total: Mapped[int] = mapped_column(BigInteger, unique=True)

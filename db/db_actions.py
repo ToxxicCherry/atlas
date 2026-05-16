@@ -2,19 +2,19 @@ from sqlalchemy import select, update, delete, func
 from sqlalchemy.dialects.postgresql import UUID, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
-from db import models, database
+from db import get_db, Cookie, TaskModel, BlackListTotalModel, ProductSizeModel, TaskProduct, ProductModel, PositionModel
 from loguru import logger
-from schemas import db_schemas, tp
-from schemas.parsers_schemas import ProductSchema
+from schemas import db_schemas, PositionSchema, ProductSchema
 
 
 
-async def get_oldest_task() ->models.TaskModel:
-    async with database.get_db() as session:
+
+async def get_oldest_task() -> TaskModel | None:
+    async with get_db() as session:
         query = (
-            select(models.TaskModel)
-            .where(models.TaskModel.status == db_schemas.TaskStatus.pending)
-            .order_by(models.TaskModel.priority.desc(), models.TaskModel.created_at.asc())
+            select(TaskModel)
+            .where(TaskModel.status == db_schemas.TaskStatus.pending)
+            .order_by(TaskModel.priority.desc(), TaskModel.created_at.asc())
             .limit(1)
             .with_for_update(skip_locked=True)
         )
@@ -30,21 +30,20 @@ async def get_oldest_task() ->models.TaskModel:
 
         return None
 
-
 async def consume_actual_cookie(market_place: db_schemas.MarketPlace):
-    async with database.get_db() as session:
+    async with get_db() as session:
         target_cookie_id = (
-            select(models.Cookie.id)
-            .where(models.Cookie.source == market_place)
-            .order_by(models.Cookie.created_at.desc())
+            select(Cookie.id)
+            .where(Cookie.source == market_place)
+            .order_by(Cookie.created_at.desc())
             .limit(1)
             .scalar_subquery()
         )
 
         stmt = (
-            delete(models.Cookie)
-            .where(models.Cookie.id == target_cookie_id)
-            .returning(models.Cookie.x_wbaas_token, models.Cookie.user_agent)
+            delete(Cookie)
+            .where(Cookie.id == target_cookie_id)
+            .returning(Cookie.x_wbaas_token, Cookie.user_agent)
         )
 
         result = await session.execute(stmt)
@@ -52,28 +51,25 @@ async def consume_actual_cookie(market_place: db_schemas.MarketPlace):
 
         return {'x_wbaas_token': row.x_wbaas_token, 'user_agent': row.user_agent}
 
-
 async def insert_blacklist_totals(session: AsyncSession, totals: list[int]):
     mapped_totals = [{'total': total} for total in totals]
 
     query = (
-        insert(models.BlackListTotal).values(mapped_totals).on_conflict_do_nothing(index_elements=[models.BlackListTotal.total])
+        insert(BlackListTotalModel).values(mapped_totals).on_conflict_do_nothing(index_elements=[BlackListTotalModel.total])
     )
 
     await session.execute(query)
 
 async def get_blacklist_totals(session: AsyncSession) -> set[int]:
-    query = select(models.BlackListTotal.total)
+    query = select(BlackListTotalModel.total)
     result = await session.execute(query)
     return set(result.scalars().all())
-
-
 
 async def set_task_status(session: AsyncSession, task_id: UUID, status: db_schemas.TaskStatus, total: int = 0, error_message = None):
 
     query = (
-        update(models.TaskModel)
-        .where(models.TaskModel.id == task_id)
+        update(TaskModel)
+        .where(TaskModel.id == task_id)
         .values(
             status=status,
             total_found=total,
@@ -84,7 +80,6 @@ async def set_task_status(session: AsyncSession, task_id: UUID, status: db_schem
 
     await session.execute(query)
 
-
 async def save_fetch_cards_batch(session: AsyncSession, batch: list[ProductSchema], task_id: UUID):
 
     product_mappings = [
@@ -94,11 +89,11 @@ async def save_fetch_cards_batch(session: AsyncSession, batch: list[ProductSchem
 
     product_ids = [p['id'] for p in product_mappings]
 
-    insert_query = insert(models.ProductModel).values(product_mappings)
+    insert_query = insert(ProductModel).values(product_mappings)
 
     update_dict = {
         col.name: insert_query.excluded[col.name]
-        for col in models.ProductModel.__table__.columns
+        for col in ProductModel.__table__.columns
         if col.name not in ['id', 'created_at']
     }
 
@@ -114,11 +109,11 @@ async def save_fetch_cards_batch(session: AsyncSession, batch: list[ProductSchem
         {'task_id': task_id, 'product_id': item.id} for item in batch
     ]
 
-    tp_insert = insert(models.TaskProduct).values(task_product_mappings).on_conflict_do_nothing()
+    tp_insert = insert(TaskProduct).values(task_product_mappings).on_conflict_do_nothing()
     await session.execute(tp_insert)
 
     delete_sizes_query = (
-        delete(models.ProductSizeModel).where(models.ProductSizeModel.product_id.in_(product_ids))
+        delete(ProductSizeModel).where(ProductSizeModel.product_id.in_(product_ids))
     )
     await session.execute(delete_sizes_query)
 
@@ -132,13 +127,12 @@ async def save_fetch_cards_batch(session: AsyncSession, batch: list[ProductSchem
 
     if all_sizes_mapping:
         await session.execute(
-            insert(models.ProductSizeModel).values(all_sizes_mapping)
+            insert(ProductSizeModel).values(all_sizes_mapping)
         )
 
     await session.flush()
 
-
-async def save_track_positions_batch(session: AsyncSession, batch: list[tp.Position], task_id: UUID):
+async def save_track_positions_batch(session: AsyncSession, batch: list[PositionSchema], task_id: UUID):
     positions_mappings = [
         position.model_dump()
         for position in batch
@@ -147,20 +141,10 @@ async def save_track_positions_batch(session: AsyncSession, batch: list[tp.Posit
     for position in positions_mappings:
         position['task_id'] = task_id
 
-    insert_query = insert(models.PositionModel).values(positions_mappings).on_conflict_do_nothing()
+    insert_query = insert(PositionModel).values(positions_mappings).on_conflict_do_nothing()
     await session.execute(insert_query)
     await session.flush()
 
-
-async def pre_save_products(session: AsyncSession, product_ids: list[int]):
-    mapping_ids = [
-        {'product_id': product_id}
-        for product_id in product_ids
-    ]
-    query = (
-        insert(models.ProductModel).values(mapping_ids).on_conflict_do_nothing()
-    )
-    await session.execute(query)
 
 
 

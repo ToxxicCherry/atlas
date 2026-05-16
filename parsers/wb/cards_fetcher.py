@@ -2,29 +2,36 @@ import asyncio
 import random
 import math
 from loguru import logger
-from schemas.parsers_schemas import FilterData, Filter, TaskForWorker, ProductSchema
-from schemas.db_schemas import TaskType, TaskStatus
-from schemas.parsers_schemas import FetchCardsResult, ParseResult
-from parsers.base import BaseParser
+from schemas import (
+    FilterDataSchema,
+    FilterSchema,
+    TaskForWorkerSchema,
+    ProductSchema,
+    TaskType,
+    TaskStatus,
+    FetchCardsResultSchema,
+    ParseResultSchema
+)
+from ..base import BaseParser
 from pydantic import TypeAdapter
 from typing import List
 from more_itertools import unique_everseen
 from collections import Counter
-from db import models
+from db import TaskModel
 
 
 
 class WBCardsFetcher(BaseParser):
-    def __init__(self, task: models.TaskModel):
+    def __init__(self, task: TaskModel):
         if task.type != TaskType.fetch_cards:
             raise ValueError(f'{self.__class__.__name__} ожидает {TaskType.fetch_cards}. Получил {task.type}' )
         self.max_same_filters = 20
         self.total_counter = Counter()
-        self.all_filters: list[list[Filter]] = None
+        self.all_filters: list[list[FilterSchema]] = None
         super().__init__(task)
 
 
-    async def fetch_filters_with_all_goods(self) -> list[Filter]:
+    async def fetch_filters_with_all_goods(self) -> list[FilterSchema]:
         """
         Вернет расширенный список фильтров. В каждый из которых входят все товары
         Потом в параметрах запроса передаем {'resultset': 'filters', 'filters': 'full_key'}
@@ -36,7 +43,7 @@ class WBCardsFetcher(BaseParser):
         data = await self.api.fetch(add_params=params)
         filters = data.get('data', {}).get('filters', [])
         result = [
-            Filter(params={'filters': _filter.get('fullKey')})
+            FilterSchema(params={'filters': _filter.get('fullKey')})
             for _filter in filters if _filter.get('fullKey')
         ]
         return result
@@ -45,7 +52,7 @@ class WBCardsFetcher(BaseParser):
         logger.info(f"Воркер {name} запущен.")
 
         while True:
-            task: TaskForWorker = await self.queue.get()
+            task: TaskForWorkerSchema = await self.queue.get()
             params = task.filter.params
 
             try:
@@ -77,7 +84,7 @@ class WBCardsFetcher(BaseParser):
         logger.info(f"Воркер {name} запущен.")
 
         while True:
-            task: TaskForWorker = await self.queue.get()
+            task: TaskForWorkerSchema = await self.queue.get()
             item = task.filter
             params = item.params
             retries = task.retries
@@ -118,7 +125,7 @@ class WBCardsFetcher(BaseParser):
         logger.info(f"Воркер {name} запущен.")
 
         while True:
-            task: TaskForWorker = await self.queue.get()
+            task: TaskForWorkerSchema = await self.queue.get()
             item = task.filter
             params = item.params
             retries = task.retries
@@ -172,11 +179,11 @@ class WBCardsFetcher(BaseParser):
 
         for item in full_key_filters:
             item + {'resultset': 'filters'}
-            await self.queue.put(TaskForWorker(filter=item))
+            await self.queue.put(TaskForWorkerSchema(filter=item))
 
         await self.run_workers(worker=self.filters_data_worker)
 
-        adapter: TypeAdapter = TypeAdapter(List[FilterData])
+        adapter: TypeAdapter = TypeAdapter(List[FilterDataSchema])
         validated_result = adapter.validate_python(self.workers_result)
         result = [res.items for res in validated_result]
 
@@ -184,17 +191,17 @@ class WBCardsFetcher(BaseParser):
 
     async def add_local_totals_to_filters_list(
             self,
-            best_filter: list[Filter],
-            default_filters: Filter = None,
+            best_filter: list[FilterSchema],
+            default_filters: FilterSchema = None,
             del_zero_total: bool = True
-    ) -> list[Filter]:
+    ) -> list[FilterSchema]:
 
         if default_filters is None:
-            default_filters = Filter(params={})
+            default_filters = FilterSchema(params={})
 
         for item in best_filter:
             item + default_filters + {'resultset': 'filters'}
-            await self.queue.put(TaskForWorker(filter=item))
+            await self.queue.put(TaskForWorkerSchema(filter=item))
 
         await self.run_workers(worker=self.local_total_worker)
 
@@ -226,7 +233,7 @@ class WBCardsFetcher(BaseParser):
                     _filter.total = self.limit
 
 
-    async def add_another_filter(self, best_filter: list[Filter]) -> list[Filter]:
+    async def add_another_filter(self, best_filter: list[FilterSchema]) -> list[FilterSchema]:
         if not self.all_filters:
             return best_filter
 
@@ -240,7 +247,7 @@ class WBCardsFetcher(BaseParser):
         filters = []
         for over_limit_filter in over_limit_filters:
             for f in another_bf:
-                filters.append(Filter(params={**over_limit_filter.params, **f.params}))
+                filters.append(FilterSchema(params={**over_limit_filter.params, **f.params}))
         result = await self.add_local_totals_to_filters_list(filters)
 
 
@@ -252,7 +259,7 @@ class WBCardsFetcher(BaseParser):
         total = await self.fetch_total_by_query()
         if total <= self.limit:
             logger.info(f'{total=} <= {self.limit=}; Пропускаю построение фильтров')
-            best_filter = [Filter(params={}, total=total)]
+            best_filter = [FilterSchema(params={}, total=total)]
             return best_filter
 
         logger.info(f'{total=} > {self.limit=}; Начинаю строить фильтры')
@@ -264,19 +271,19 @@ class WBCardsFetcher(BaseParser):
 
         return best_filter
 
-    async def prepare_queue_for_catalog(self, best_filter: list[Filter]):
+    async def prepare_queue_for_catalog(self, best_filter: list[FilterSchema]):
         for item in best_filter:
             pages = min(math.ceil(item.total / self.max_cards_on_page), self.max_pages)
             for page in range(1, pages + 1):
                 params = item.params | {'resultset': 'catalog', 'page': page}
-                await self.queue.put(TaskForWorker(filter=Filter(params=params)))
+                await self.queue.put(TaskForWorkerSchema(filter=FilterSchema(params=params)))
 
     @staticmethod
     def delete_duplicates(items: list[ProductSchema]) -> list[ProductSchema]:
         result = list(unique_everseen(items, key=lambda item: item.id))
         return result
 
-    async def parse(self) -> ParseResult:
+    async def parse(self) -> ParseResultSchema:
         try:
             await self.get_blacklist_total()
             await self.api.change_cookie()
@@ -290,10 +297,10 @@ class WBCardsFetcher(BaseParser):
 
             await self.save_blacklist_totals()
 
-            return ParseResult(
+            return ParseResultSchema(
                 task_id=self.db_task.id,
                 status=TaskStatus.completed,
-                payload=FetchCardsResult(
+                payload=FetchCardsResultSchema(
                     type=TaskType.fetch_cards,
                     items=result,
                 )
@@ -304,7 +311,7 @@ class WBCardsFetcher(BaseParser):
                 logger.error(f'Словил "pop from empty list". Повторяю попытку')
                 return await self.parse()
 
-            return ParseResult(
+            return ParseResultSchema(
                 task_id=self.db_task.id,
                 status=TaskStatus.failed,
                 error_message=str(e)
@@ -312,7 +319,7 @@ class WBCardsFetcher(BaseParser):
         except (Exception, BaseException) as e:
             logger.exception(e)
 
-            return ParseResult(
+            return ParseResultSchema(
                 task_id=self.db_task.id,
                 status=TaskStatus.failed,
                 error_message=str(e)

@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
 
-class Position(BaseModel):
+class PositionSchema(BaseModel):
     product_id: int
     position: int

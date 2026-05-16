@@ -10,15 +10,15 @@ from typing import List, Dict, Any, Union, Literal, Optional
 from schemas.db_schemas import TaskType, TaskStatus
 from copy import copy
 from uuid import UUID
-from .track_positions import Position
+from .track_positions import PositionSchema
 
 
-class Filter(BaseModel):
+class FilterSchema(BaseModel):
     params: Dict[str, str | int] = Field(default_factory=dict)
     total: int = Field(default=0)
 
     def __add__(self, other):
-        if isinstance(other, Filter):
+        if isinstance(other, FilterSchema):
             self.params.update(other.params)
             return self
 
@@ -26,19 +26,19 @@ class Filter(BaseModel):
             self.params.update(other)
             return self
 
-        raise TypeError(f'Ожидается {Filter} или {dict}. Получен {type(other)}')
+        raise TypeError(f'Ожидается {FilterSchema} или {dict}. Получен {type(other)}')
 
     def __eq__(self, other):
-        if isinstance(other, Filter):
+        if isinstance(other, FilterSchema):
             return self.params.keys() == other.params.keys()
 
         if isinstance(other, dict):
             return self.params.keys() == other.keys()
 
-        raise TypeError(f'Ожидается {Filter} или {dict}. Получен {type(other)}')
+        raise TypeError(f'Ожидается {FilterSchema} или {dict}. Получен {type(other)}')
 
-class FilterData(BaseModel):
-    items: List[Filter] = Field(default_factory=list)
+class FilterDataSchema(BaseModel):
+    items: List[FilterSchema] = Field(default_factory=list)
 
 
     @model_validator(mode='before')
@@ -56,15 +56,15 @@ class FilterData(BaseModel):
         items = target_filter.get('items', [])
 
         result = [
-            Filter(params={key: item.get('id')})
+            FilterSchema(params={key: item.get('id')})
             for item in items
             if item.get('id') is not None
         ]
 
         return {'items': result}
 
-class TaskForWorker(BaseModel):
-    filter: Filter = Field(default_factory=Filter)
+class TaskForWorkerSchema(BaseModel):
+    filter: FilterSchema = Field(default_factory=FilterSchema)
     retries: int = Field(default=5)
 
 class SizeSchema(BaseModel):
@@ -122,21 +122,21 @@ class ProductSchema(BaseModel):
     weight: Optional[float] = Field(serialization_alias='Вес', default=None)
     wh: Optional[int] = Field(description='ID склада', serialization_alias='ID склада', default=None)
 
-class FetchCardsResult(BaseModel):
+class FetchCardsResultSchema(BaseModel):
     type: Literal[TaskType.fetch_cards] = TaskType.fetch_cards
     items: List[ProductSchema] = Field(default_factory=list)
 
-class TrackPositionsResult(BaseModel):
+class TrackPositionsResultSchema(BaseModel):
     type: Literal[TaskType.track_positions] = TaskType.track_positions
-    positions: List[Position] = Field(default_factory=list)
+    positions: List[PositionSchema] = Field(default_factory=list)
     items: List[ProductSchema] = Field(default_factory=list)
 
 Payload = Union[
-    FetchCardsResult,
-    TrackPositionsResult,
+    FetchCardsResultSchema,
+    TrackPositionsResultSchema,
 
 ]
-class ParseResult(BaseModel):
+class ParseResultSchema(BaseModel):
     task_id: UUID = Field()
     status: TaskStatus = Field(default=TaskStatus.completed)
     error_message: Optional[str] = None

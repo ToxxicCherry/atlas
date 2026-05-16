@@ -1,16 +1,14 @@
 from abc import ABC, abstractmethod
-from schemas.parsers_schemas import ParseResult
-from db import models
-from db.database import get_db
-from db.db_actions import insert_blacklist_totals, get_blacklist_totals
-from clients.wb_client import WBClient
+from schemas import ParseResultSchema
+from db import TaskModel, get_db, insert_blacklist_totals, get_blacklist_totals
+from clients import WBClient
 from typing import Callable
 from loguru import logger
 import asyncio
 
 
 class BaseParser(ABC):
-    def __init__(self, task: models.TaskModel):
+    def __init__(self, task: TaskModel):
         self.db_task = task
         self.limit = 5000
         self.max_pages = 50
@@ -65,5 +63,5 @@ class BaseParser(ABC):
             w.cancel()
 
     @abstractmethod
-    async def parse(self) -> ParseResult:
+    async def parse(self) -> ParseResultSchema:
         raise NotImplementedError
