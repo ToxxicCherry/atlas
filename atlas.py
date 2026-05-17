@@ -1,15 +1,12 @@
-from parsers import ParserMaker
 from db import get_oldest_task
-from schemas import TaskStatus, ParseResultSchema
 from loguru import logger
-from saver import Saver
+from scheduler import TaskScheduler
 import asyncio
 
 class Atlas:
     def __init__(self):
-        self.manager = ParserMaker()
         self.max_workers = 1
-        self.saver = Saver()
+        self.scheduler = TaskScheduler()
 
 
     async def worker(self):
@@ -22,25 +19,8 @@ class Atlas:
                 await asyncio.sleep(5)
                 continue
 
-            result = ParseResultSchema(
-                task_id=task.id,
-                error_message='Ошибка воркера в try except. ParseResult не был получен',
-                status=TaskStatus.failed
-            )
-            try:
-                parser = self.manager.choose(task)
-                result: ParseResultSchema = await parser.parse()
+            await self.scheduler.handle_new_task(task)
 
-            except (Exception, BaseException) as e:
-                logger.error(e)
-                result = ParseResultSchema(
-                    task_id=task.id,
-                    error_message=str(e),
-                    status=TaskStatus.failed
-                )
-
-            finally:
-                await self.saver.save(result)
 
 
 

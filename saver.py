@@ -71,7 +71,6 @@ class Saver:
                 await self.fetch_cards_save(session, parse_result)
                 await self.track_positions_save(session, parse_result)
 
-
             await set_task_status(session, parse_result.task_id, parse_result.status, total_found, parse_result.error_message)
 
 

@@ -7,6 +7,7 @@ __all__ = [
     'TaskType',
     'MarketPlace',
     'TaskStatus',
+    'TrackPositionInterval',
     'FetchCardsPayloadSchema',
     'TrackPositionPayloadSchema',
     'FilterSchema',

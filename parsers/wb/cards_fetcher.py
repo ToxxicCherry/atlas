@@ -299,7 +299,7 @@ class WBCardsFetcher(BaseParser):
 
             return ParseResultSchema(
                 task_id=self.db_task.id,
-                status=TaskStatus.completed,
+                status=TaskStatus.processing,
                 payload=FetchCardsResultSchema(
                     type=TaskType.fetch_cards,
                     items=result,

@@ -99,7 +99,7 @@ class PositionsFetcher(BaseParser):
 
             return ParseResultSchema(
                 task_id=self.db_task.id,
-                status=TaskStatus.completed,
+                status=TaskStatus.processing,
                 payload=TrackPositionsResultSchema(
                     type=TaskType.track_positions,
                     positions=self.positions,

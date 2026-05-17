@@ -3,10 +3,26 @@ from sqlalchemy.dialects.postgresql import UUID, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 from db import get_db, Cookie, TaskModel, BlackListTotalModel, ProductSizeModel, TaskProduct, ProductModel, PositionModel
+from schemas import TaskType
 from loguru import logger
 from schemas import db_schemas, PositionSchema, ProductSchema
 
 
+
+
+
+async def update_task_iterations(task_id: UUID, iterations: int):
+    async with get_db() as session:
+        query = update(TaskModel).where(TaskModel.id == task_id).values(iterations_left=iterations)
+        await session.execute(query)
+
+
+async def get_task_by_id(task_id: UUID) -> TaskModel:
+    async with get_db() as session:
+        query = select(TaskModel).where(TaskModel.id == task_id)
+        result = await session.execute(query)
+        task = result.scalar_one_or_none()
+        return task
 
 
 async def get_oldest_task() -> TaskModel | None:

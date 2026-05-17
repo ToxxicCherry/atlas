@@ -22,4 +22,6 @@ __all__ = [
     'set_task_status',
     'save_fetch_cards_batch',
     'save_track_positions_batch',
+    'update_task_iterations',
+    'get_task_by_id'
 ]
