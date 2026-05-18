@@ -3,9 +3,9 @@ from sqlalchemy.dialects.postgresql import UUID, insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 from db import get_db, Cookie, TaskModel, BlackListTotalModel, ProductSizeModel, TaskProduct, ProductModel, PositionModel
-from schemas import TaskType
+from schemas import TaskStatus, PositionSchema, ProductSchema, MarketPlace
 from loguru import logger
-from schemas import db_schemas, PositionSchema, ProductSchema
+
 
 
 
@@ -25,28 +25,23 @@ async def get_task_by_id(task_id: UUID) -> TaskModel:
         return task
 
 
-async def get_oldest_task() -> TaskModel | None:
+async def get_fresh_task_and_set_status(task_id: UUID, status: TaskStatus | None = None) -> TaskModel | None:
     async with get_db() as session:
-        query = (
-            select(TaskModel)
-            .where(TaskModel.status == db_schemas.TaskStatus.pending)
-            .order_by(TaskModel.priority.desc(), TaskModel.created_at.asc())
-            .limit(1)
-            .with_for_update(skip_locked=True)
-        )
-
+        query = select(TaskModel).where(TaskModel.id == task_id)
         result = await session.execute(query)
         task = result.scalar_one_or_none()
 
         if task:
-            task.status = db_schemas.TaskStatus.processing
             task.started_at = datetime.now(timezone.utc)
             logger.info(f"--> [ATLAS] Задача {task.id} («{task.type}, {task.payload['query']}») взята в работу")
+            if status:
+                task.status = status
             return task
+
 
         return None
 
-async def consume_actual_cookie(market_place: db_schemas.MarketPlace):
+async def consume_actual_cookie(market_place: MarketPlace):
     async with get_db() as session:
         target_cookie_id = (
             select(Cookie.id)
@@ -81,7 +76,7 @@ async def get_blacklist_totals(session: AsyncSession) -> set[int]:
     result = await session.execute(query)
     return set(result.scalars().all())
 
-async def set_task_status(session: AsyncSession, task_id: UUID, status: db_schemas.TaskStatus, total: int = 0, error_message = None):
+async def set_task_status(session: AsyncSession, task_id: UUID, status: TaskStatus, total: int = 0, error_message = None):
 
     query = (
         update(TaskModel)
