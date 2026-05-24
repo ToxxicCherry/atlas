@@ -8,10 +8,12 @@ from uuid import UUID
 from loguru import logger
 from saver import Saver
 from datetime import datetime, timezone
+from db import RedisService
 
 
 class TaskScheduler:
-    def __init__(self):
+    def __init__(self, redis: RedisService):
+        self.redis = redis
         self.scheduler = AsyncIOScheduler(timezone=timezone.utc)
         self.scheduler.start()
         self.session_maker = get_db
@@ -64,6 +66,7 @@ class TaskScheduler:
                 )
             finally:
                 await self.saver.save(result)
+                await self.redis.send_task_update(result)
 
     async def run_single_parsing(self, task_id: UUID):
         logger.info(f"[TaskScheduler] Запуск разовой задачи {task_id}")
@@ -92,6 +95,8 @@ class TaskScheduler:
                 )
             finally:
                 await self.saver.save(result)
+                await self.redis.send_task_update(result)
+
 
 
     async def handle_new_task(self, task: TaskModel):
